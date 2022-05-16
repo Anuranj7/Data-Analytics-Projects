@@ -1,0 +1,289 @@
+#### Combine 12 monthly datasets to 1 yearly dataset ####
+
+SELECT *
+FROM
+
+(
+  SELECT *
+  FROM
+  `black-radius-348310.trip_data.tripdata_202105`
+  UNION ALL
+  
+  SELECT *
+  FROM
+  `black-radius-348310.trip_data.tripdata_202106`
+  UNION ALL
+
+  SELECT *
+  FROM
+  `black-radius-348310.trip_data.tripdata_202107`
+  UNION ALL
+
+  SELECT *
+  FROM
+  `black-radius-348310.trip_data.tripdata_202108`
+  UNION ALL
+
+  SELECT *
+  FROM
+  `black-radius-348310.trip_data.tripdata_202109`
+  UNION ALL
+
+  SELECT *
+  FROM
+  `black-radius-348310.trip_data.tripdata_202110`
+  UNION ALL
+
+  SELECT *
+  FROM
+  `black-radius-348310.trip_data.tripdata_202111`
+  UNION ALL
+
+  SELECT *
+  FROM
+  `black-radius-348310.trip_data.tripdata_202112`
+  UNION ALL
+
+  SELECT *
+  FROM
+  `black-radius-348310.trip_data.tripdata_202201`
+  UNION ALL
+
+  SELECT *
+  FROM
+  `black-radius-348310.trip_data.tripdata_202202`
+  UNION ALL
+
+  SELECT *
+  FROM
+  `black-radius-348310.trip_data.tripdata_202203`
+  UNION ALL
+
+  SELECT *
+  FROM
+  `black-radius-348310.trip_data.tripdata_202204` ) AS year_data
+
+
+#### Removing empty data sets from dataset ####
+
+SELECT *
+FROM
+  
+  (
+    SELECT *
+    FROM
+     `black-radius-348310.trip_data.year_data`
+    WHERE
+     start_station_name IS NOT NULL
+     AND ride_id IS NOT NULL
+     AND rideable_type IS NOT NULL
+     AND started_at IS NOT NULL
+     AND ended_at IS NOT NULL
+     AND ride_length IS NOT NULL
+     AND day_of_week IS NOT NULL
+     AND start_station_id IS NOT NULL
+     AND end_station_name IS NOT NULL
+     AND end_station_id IS NOT NULL
+     AND start_lat IS NOT NULL
+     AND start_lng IS NOT NULL
+     AND end_lat IS NOT NULL
+     AND end_lng IS NOT NULL
+     AND member_casual IS NOT NULL 
+
+  ) AS cleaned_data
+
+#### Assisgn respective day of the week,month and replacing rideable_type to ride_type  ####
+
+SELECT 
+ride_id,
+
+      REPLACE(rideable_type, 'docked_bike', 'classic_bike') AS ride_type,
+      CASE
+         WHEN EXTRACT(DAYOFWEEK FROM started_at) = 1 THEN 'Sunday'
+         WHEN EXTRACT(DAYOFWEEK FROM started_at) = 2 THEN 'Monday'
+         WHEN EXTRACT(DAYOFWEEK FROM started_at) = 3 THEN 'Tuesday'
+         WHEN EXTRACT(DAYOFWEEK FROM started_at) = 4 THEN 'Wednesday'
+         WHEN EXTRACT(DAYOFWEEK FROM started_at) = 5 THEN 'Thursday'
+         WHEN EXTRACT(DAYOFWEEK FROM started_at) = 6 THEN 'Friday'
+         ELSE'Saturday' 
+      END AS day_of_week,
+      CASE
+         WHEN EXTRACT(MONTH FROM started_at) = 1 THEN 'January'
+         WHEN EXTRACT(MONTH FROM started_at) = 2 THEN 'February'
+         WHEN EXTRACT(MONTH FROM started_at) = 3 THEN 'March'
+         WHEN EXTRACT(MONTH FROM started_at) = 4 THEN 'April'
+         WHEN EXTRACT(MONTH FROM started_at) = 5 THEN 'May'
+         WHEN EXTRACT(MONTH FROM started_at) = 6 THEN 'June'
+         WHEN EXTRACT(MONTH FROM started_at) = 7 THEN 'July'
+         WHEN EXTRACT(MONTH FROM started_at) = 8 THEN 'August'
+         WHEN EXTRACT(MONTH FROM started_at) = 9 THEN 'September'
+         WHEN EXTRACT(MONTH FROM started_at) = 10 THEN 'October'
+         WHEN EXTRACT(MONTH FROM started_at) = 11 THEN 'November'
+         ELSE 'December'
+      END AS month,
+      EXTRACT(DAY FROM started_at) as day,
+      EXTRACT(YEAR FROM started_at) AS year,
+      TIMESTAMP_DIFF(ended_at, started_at, MINUTE) AS ride_time_minutes,
+      started_at,
+      ended_at,
+      start_station_name,
+      end_station_name,
+      start_station_id,
+      end_station_id,
+      start_lat,
+      start_lng,
+      end_lat,
+      end_lng,
+      member_casual AS member_type
+   FROM 
+   `black-radius-348310.trip_data.cleaned_data` AS aggregate_data
+
+#### Checking ride_id for characters more than 16 ####
+
+SELECT *
+FROM 
+ `black-radius-348310.trip_data.aggregate_data`
+WHERE LENGTH(ride_id) = 16 
+
+# Characters morethan 16 is already cleaned from ride_id column using filter option in Excel #
+
+######## DATA EXPLORATION ########
+
+# 1. Finding the total numbers of rides from respective stations #
+
+SELECT 
+COUNT(member_type) AS Casual, start_station_name
+FROM
+ `black-radius-348310.trip_data.aggregate_data`
+WHERE 
+member_type = "casual"
+GROUP BY start_station_name 
+
+SELECT 
+COUNT(member_type) AS Member, start_station_name
+FROM
+ `black-radius-348310.trip_data.aggregate_data`
+WHERE 
+member_type = "member"
+GROUP BY start_station_name 
+
+# 2. Finding the total number of rides by each member type member, casual #
+
+SELECT 
+COUNT(*) AS total_rides
+FROM
+`black-radius-348310.trip_data.aggregate_data`
+WHERE 
+member_type = "member"
+GROUP BY member_type
+
+SELECT 
+COUNT(*) AS total_rides
+FROM
+`black-radius-348310.trip_data.aggregate_data`
+WHERE 
+member_type = "casual"
+GROUP BY member_type
+
+# 3. Checking for rides morethan 1 minute and less than one day #
+
+SELECT *
+FROM 
+ `black-radius-348310.trip_data.aggregate_data`
+WHERE
+ TIMESTAMP_DIFF(ended_at, started_at, MINUTE) < 1 OR
+ TIMESTAMP_DIFF(ended_at, started_at, MINUTE) >= 1440
+
+######## DATA ANALYSIS ########
+
+# All results from the analysis are imported as csv in to Excel for visualization #
+
+# 1. Finding the number of rides and the type of rides for each member_type #
+
+SELECT 
+ride_type, 
+member_type, 
+COUNT(*) AS amount_of_rides
+FROM `black-radius-348310.trip_data.aggregate_data`
+GROUP BY ride_type, member_type
+ORDER BY member_type, amount_of_rides DESC 
+
+# 2. Finding the number of rides per month #
+
+SELECT 
+member_type, 
+month, 
+COUNT(*) AS num_of_rides
+FROM `black-radius-348310.trip_data.aggregate_data`
+GROUP BY member_type, month
+
+# 3. Finding the number of rides per day #
+
+SELECT
+member_type,
+day_of_week,
+COUNT(*) AS num_of_rides
+FROM `black-radius-348310.trip_data.aggregate_data`
+GROUP BY member_type, day_of_week
+
+# 4. Finding the number of rides per hour #
+
+SELECT 
+member_type, 
+EXTRACT(HOUR FROM started_at) AS time_of_day, 
+COUNT(*) as num_of_rides
+FROM `black-radius-348310.trip_data.aggregate_data`
+GROUP BY member_type, time_of_day 
+
+# 5. Finding average trip length by day of week, member type and by month #
+
+SELECT 
+member_type, 
+day_of_week, 
+month,
+ROUND(AVG(ride_time_minutes), 0) AS avg_ride_time_minutes,
+AVG(AVG(ride_time_minutes)) OVER(PARTITION BY member_type) AS combined_avg_ride_time
+FROM `black-radius-348310.trip_data.aggregate_data`
+GROUP BY member_type, day_of_week, month
+
+# 6. Finding the start station location for each member type #
+
+SELECT
+start_station_name,
+ROUND(AVG(start_lat), 4) AS start_lat, 
+ROUND(AVG(start_lng), 4) AS start_lng,  
+COUNT(*) AS num_of_rides
+FROM `black-radius-348310.trip_data.aggregate_data`
+WHERE member_type = 'member'  
+GROUP BY start_station_name
+
+SELECT 
+start_station_name,
+ROUND(AVG(start_lat), 4) AS start_lat, 
+ROUND(AVG(start_lng), 4) AS start_lng,  
+COUNT(*) AS num_of_rides
+FROM `black-radius-348310.trip_data.aggregate_data`
+WHERE member_type = 'casual'  
+GROUP BY start_station_name
+
+# 7. Finding the end station location for each member type #
+
+SELECT 
+end_station_name,
+ROUND(AVG(start_lat), 4) AS end_lat, 
+ROUND(AVG(start_lng), 4) AS end_lng,  
+COUNT(*) AS num_of_rides
+FROM `black-radius-348310.trip_data.aggregate_data`
+WHERE member_type = 'member'
+GROUP BY end_station_name
+
+SELECT
+end_station_name,
+ROUND(AVG(start_lat), 4) AS end_lat, 
+ROUND(AVG(start_lng), 4) AS end_lng,  
+COUNT(*) AS num_of_rides
+FROM `black-radius-348310.trip_data.aggregate_data`
+WHERE member_type = 'casual' 
+GROUP BY end_station_name
+
+
