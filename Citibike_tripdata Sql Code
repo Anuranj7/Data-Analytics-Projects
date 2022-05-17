@@ -122,6 +122,20 @@ ride_id,
          WHEN EXTRACT(MONTH FROM started_at) = 11 THEN 'November'
          ELSE 'December'
       END AS month,
+      CASE
+        WHEN EXTRACT(MONTH FROM started_at) = 1 THEN 'Winter'
+        WHEN EXTRACT(MONTH FROM started_at) = 2 THEN 'Winter'
+        WHEN EXTRACT(MONTH FROM started_at) = 3 THEN 'Spring'
+        WHEN EXTRACT(MONTH FROM started_at) = 4 THEN 'Spring'
+        WHEN EXTRACT(MONTH FROM started_at) = 5 THEN 'Spring'
+        WHEN EXTRACT(MONTH FROM started_at) = 6 THEN 'Summer'
+        WHEN EXTRACT(MONTH FROM started_at) = 7 THEN 'Summer'
+        WHEN EXTRACT(MONTH FROM started_at) = 8 THEN 'Summer'
+        WHEN EXTRACT(MONTH FROM started_at) = 9 THEN 'Autumn'
+        WHEN EXTRACT(MONTH FROM started_at) = 10 THEN 'Autumn'
+        WHEN EXTRACT(MONTH FROM started_at) = 11 THEN 'Autumn'
+        WHEN EXTRACT(MONTH FROM started_at) = 12 THEN 'Winter'
+      END AS season,
       EXTRACT(DAY FROM started_at) as day,
       EXTRACT(YEAR FROM started_at) AS year,
       TIMESTAMP_DIFF(ended_at, started_at, MINUTE) AS ride_time_minutes,
@@ -238,7 +252,16 @@ COUNT(*) AS num_of_rides
 FROM `black-radius-348310.trip_data.aggregate_data`
 GROUP BY member_type, month
 
-# 3. Finding the number of rides per day #
+# 3. Finding the number of rides per season #
+
+SELECT 
+member_type, 
+season, 
+COUNT(*) AS num_of_rides
+FROM `black-radius-348310.trip_data.aggregate_data`
+GROUP BY member_type, season
+
+# 4. Finding the number of rides per day #
 
 SELECT
 member_type,
@@ -247,7 +270,7 @@ COUNT(*) AS num_of_rides
 FROM `black-radius-348310.trip_data.aggregate_data`
 GROUP BY member_type, day_of_week
 
-# 4. Finding the number of rides per hour #
+# 5. Finding the number of rides per hour #
 
 SELECT 
 member_type, 
@@ -256,7 +279,7 @@ COUNT(*) as num_of_rides
 FROM `black-radius-348310.trip_data.aggregate_data`
 GROUP BY member_type, time_of_day 
 
-# 5. Finding average trip length by day of week, member type and by month #
+# 6. Finding average trip length by day of week, member type and by month #
 
 SELECT 
 member_type, 
@@ -267,7 +290,7 @@ AVG(AVG(ride_time_minutes)) OVER(PARTITION BY member_type) AS combined_avg_ride_
 FROM `black-radius-348310.trip_data.aggregate_data`
 GROUP BY member_type, day_of_week, month
 
-# 6. Finding the start station location for each member type #
+# 7. Finding the start station location for each member type #
 
 SELECT
 start_station_name,
@@ -287,7 +310,7 @@ FROM `black-radius-348310.trip_data.aggregate_data`
 WHERE member_type = 'casual'  
 GROUP BY start_station_name
 
-# 7. Finding the end station location for each member type #
+# 8. Finding the end station location for each member type #
 
 SELECT 
 end_station_name,
