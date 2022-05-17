@@ -64,6 +64,7 @@ FROM
   `black-radius-348310.trip_data.tripdata_202204` ) AS year_data
 
 
+
 #### Removing empty data sets from dataset ####
 
 SELECT *
@@ -149,7 +150,23 @@ WHERE LENGTH(ride_id) = 16
 
 ######## DATA EXPLORATION ########
 
-# 1. Finding the total numbers of rides from respective stations #
+# 1. Finding the total number of electric bikes and classic bikes #
+
+SELECT 
+COUNT(ride_type)
+FROM
+ `black-radius-348310.trip_data.aggregate_data`
+WHERE 
+ride_type = "electric_bike"
+
+SELECT 
+COUNT(ride_type)
+FROM
+ `black-radius-348310.trip_data.aggregate_data`
+WHERE 
+ride_type = "classic_bike"
+
+# 2. Finding the total numbers of rides from respective stations #
 
 SELECT 
 COUNT(member_type) AS Casual, start_station_name
@@ -159,6 +176,7 @@ WHERE
 member_type = "casual"
 GROUP BY start_station_name 
 
+
 SELECT 
 COUNT(member_type) AS Member, start_station_name
 FROM
@@ -167,7 +185,7 @@ WHERE
 member_type = "member"
 GROUP BY start_station_name 
 
-# 2. Finding the total number of rides by each member type member, casual #
+# 3. Finding the total number of rides by each member type member, casual #
 
 SELECT 
 COUNT(*) AS total_rides
@@ -176,6 +194,7 @@ FROM
 WHERE 
 member_type = "member"
 GROUP BY member_type
+
 
 SELECT 
 COUNT(*) AS total_rides
@@ -185,7 +204,7 @@ WHERE
 member_type = "casual"
 GROUP BY member_type
 
-# 3. Checking for rides morethan 1 minute and less than one day #
+# 4. Checking for rides morethan 1 minute and less than one day #
 
 SELECT *
 FROM 
@@ -285,5 +304,4 @@ COUNT(*) AS num_of_rides
 FROM `black-radius-348310.trip_data.aggregate_data`
 WHERE member_type = 'casual' 
 GROUP BY end_station_name
-
 
