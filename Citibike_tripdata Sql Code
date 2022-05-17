@@ -153,18 +153,20 @@ WHERE LENGTH(ride_id) = 16
 # 1. Finding the total number of electric bikes and classic bikes #
 
 SELECT 
-COUNT(ride_type)
+COUNT(ride_type) AS electric_bike, member_type
 FROM
  `black-radius-348310.trip_data.aggregate_data`
 WHERE 
 ride_type = "electric_bike"
+GROUP BY member_type
 
 SELECT 
-COUNT(ride_type)
+COUNT(ride_type) AS classic_bike, member_type
 FROM
  `black-radius-348310.trip_data.aggregate_data`
 WHERE 
 ride_type = "classic_bike"
+GROUP BY member_type
 
 # 2. Finding the total numbers of rides from respective stations #
 
