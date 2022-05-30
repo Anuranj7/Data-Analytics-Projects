@@ -1,0 +1,535 @@
+# Install packages
+install.packages("tidyverse")
+install.packages("tibbletime")
+install.packages("lubridate")
+install.packages("ggcorrplot")
+install.packages("ggthemes") 
+install.packages("forcats") 
+install.packages("gridExtra") 
+
+# Load packages
+library(tidyverse)
+library(tibbletime)
+library(lubridate)
+library(ggcorrplot)
+library(ggthemes)
+library(forcats)
+library(gridExtra)
+
+# Import data
+avocado_df <- read_csv("avocado_price/avocado.csv")
+
+# Inspecting data
+
+head(avocado_df) 
+tail(avocado_df) 
+str(avocado_df) 
+glimpse(avocado_df) 
+colnames(avocado_df) 
+summary(avocado_df) 
+dim(avocado_df) 
+nrow(avocado_df)
+ncol(avocado_df) 
+sum(is.null(avocado_df)) 
+avocado_df$year <- as.factor(avocado_df$year) 
+str(avocado_df) 
+
+class(avocado_df$Date)    
+table(avocado_df$type)
+table(avocado_df$region)
+
+# adding new column-month
+avocado_df$month <- format(as.Date(avocado_df$Date), "%B")
+
+
+# order month name
+avocado_df$month <- ordered(avocado_df$month, levels=c("January", "February","March", "April", "May", "June", "July", "August", "September", "October", "November", "December"))
+
+# Remove space between column names
+colnames(avocado_df)[4] <- "Total_Volume"
+colnames(avocado_df)[8] <- "Total_Bags"
+colnames(avocado_df)[9] <- "Small_Bags"
+colnames(avocado_df)[10] <- "Large_Bags"
+colnames(avocado_df)[11] <- "XLarge_Bags"
+avocado_df
+
+avocado_df %>% 
+  select(-c(X1, Date, type, year, region, month)) %>% 
+  summary() 
+
+# filtering for conventional type and summary
+
+avocado_df %>% filter(type == "conventional") %>%
+  select(-c(X1, Date, type, year, region, month)) %>% 
+  summary() 
+
+# filtering for organic type and summary
+
+avocado_df %>% filter(type == "organic") %>%
+  select(-c(X1, Date, type, year, region, month)) %>% 
+  summary()
+  
+Analysis and Visualization 
+# Ploting graphs
+
+options(repr.plot.width= 10, repr.plot.height=6)
+ggplot(avocado_df, aes(x= type, y = AveragePrice, fill = year)) + geom_boxplot() + 
+  labs(title = "Average Price per Year for Conventional and Organic Avocado")
+
+options(repr.plot.width= 15, repr.plot.height=8)
+ggplot(avocado_df, aes(x= month, y = AveragePrice, fill = month)) + geom_boxplot() + 
+  labs(title = "Yearly - Average Prices for Conventional and Organic Avocado per Month") + facet_grid(type ~ year) +
+  theme(axis.text.x = element_text(angle = 45))
+
+options(repr.plot.width= 10, repr.plot.height=6)
+ggplot(avocado_df, aes(x= Date, y = AveragePrice, color = type)) + geom_line(size=1) + labs(title = "Year vs. Average Price")
+
+options(repr.plot.width= 12, repr.plot.height=6)
+ggplot(avocado_df, aes(x= Date, y = AveragePrice, color = type)) + geom_line(size=1) +
+  facet_wrap(~type) + labs(title = "Year vs. Average Price for Conventional and Organic Avocado")
+
+df <- avocado_df %>% select(year,month, type, AveragePrice, Total_Volume)%>% group_by(year, month, type)  %>%
+  summarise(AveragePrice = mean(AveragePrice), Average_TotalVolume = mean(Total_Volume) ) 
+df
+
+options(repr.plot.width= 12, repr.plot.height=6)
+ggplot(df, aes(x= month, y = AveragePrice, color = year, group = year)) + geom_line(size = 1) + facet_wrap(~type)+
+  labs(title = "Yearly Average Prices per Month") + theme(axis.text.x = element_text(angle = 45))
+
+options(repr.plot.width= 15, repr.plot.height=15)
+avocado_df %>% ggplot(aes(x = AveragePrice, y = region, fill = region)) + geom_boxplot() +  scale_x_continuous(breaks=c(seq(0,3.4,0.2)))+
+  labs(title = "Average Price vs. Region", x= "Average Price", y= "Region") + theme(axis.text.x = element_text(angle = 90))
+
+options(repr.plot.width= 20, repr.plot.height=25)
+ggplot(avocado_df, aes(y = AveragePrice, x = region)) + geom_tufteboxplot() + scale_y_continuous(breaks=c(seq(0,3.4,0.2))) + facet_wrap(~type) +  coord_flip() + 
+  labs(title = "Average prices of Conventional and Organic Avocados for Each Region") + theme(axis.text.x = element_text(angle = 90))
+
+options(repr.plot.width= 20, repr.plot.height=25)
+ggplot(avocado_df, aes(y = AveragePrice, x = region)) + geom_tufteboxplot() + scale_y_continuous(breaks=c(seq(0,3,0.2))) + facet_grid(type~year) +  coord_flip() + 
+  labs(title = "Average Prices of Conventional and Organic Avocados for Each Region per Year") + theme(axis.text.x = element_text(angle = 90))
+
+# add month number like 01, 02...12
+
+avocado_df$month_number <- format(as.Date(avocado_df$Date), "%m")
+avocado_df 
+avocado_df <- avocado_df %>% mutate(season = case_when(month_number >= "03" & month_number <= "05" ~ "Spring",                                                      month_number >= "06" & month_number <= "08" ~ "Summer",
+                                                      month_number >= "09" & month_number <= "11" ~ "Autumn",
+                                                      month_number >= "12" | month_number <= "02" ~ "Winter"))
+
+avocado_df
+
+df_season <- avocado_df %>% select( type, season, AveragePrice, Total_Volume) %>% group_by( season, type) %>%
+  summarise(Average_Price = mean(AveragePrice), Average_TotalVolume = mean(Total_Volume)) 
+
+df_season
+
+options(repr.plot.width= 15, repr.plot.height=8)
+ggplot(df_season, aes(x = season, y = Average_Price, fill = season)) + geom_col() + facet_grid(~type) + 
+  labs(title = "Season vs. Average Price for Convention and Organic Avocado")
+
+s1 <- avocado_df %>% select( season, AveragePrice, Total_Volume, type, year) %>% 
+  filter(type == "conventional", year == c("2015", "2016", "2017")) %>%
+  group_by(season, type, year) %>%
+  summarise(Average_Price = mean(AveragePrice), Average_TotalVolume = mean(Total_Volume)) %>%
+  ggplot(aes(x=season, y=Average_Price, color=season)) + geom_point(size=3) +
+  geom_segment(aes(x=season, 
+                   xend=season, 
+                   y=0, 
+                   yend=Average_Price)) + 
+  coord_flip() + facet_wrap(~as.factor(year)) + theme_minimal()+ 
+  theme(plot.title=element_text(hjust=0.5), plot.background=element_rect(fill="#F4F6F7")) + 
+  scale_color_manual(values=c("#a06a31", "#9bd16b", "#d1706b", "#3bbf9e")) + 
+  labs(title="Conventional Avocado Price by Season", x="Season", y="Average Price") + 
+  geom_text(aes(x=season, y=0.01, label= paste0("$ ", round(Average_Price,2))),
+            hjust=-0.5, vjust=-0.5, size=4, 
+            colour="black", fontface="italic",
+            angle=360)
+
+s2 <- avocado_df %>% select( season, AveragePrice, Total_Volume, type, year) %>% 
+  filter(type == "organic", year == c("2015", "2016", "2017")) %>%
+  group_by(season, type, year) %>%
+  summarise(Average_Price = mean(AveragePrice), Average_TotalVolume = mean(Total_Volume)) %>%
+  ggplot(aes(x=season, y=Average_Price, color=season)) + geom_point(size=3) +
+  geom_segment(aes(x=season, 
+                   xend=season, 
+                   y=0, 
+                   yend=Average_Price)) + 
+  coord_flip() + facet_wrap(~as.factor(year)) + theme_minimal()+ 
+  theme(plot.title=element_text(hjust=0.5), plot.background=element_rect(fill="#F4F6F7")) + 
+  scale_color_manual(values=c("#a06a31", "#9bd16b", "#d1706b", "#3bbf9e")) + 
+  labs(title="Organic Avocado Price by Season", x="Season", y="Average Price") + 
+  geom_text(aes(x=season, y=0.01, label= paste0("$ ", round(Average_Price,2))),
+            hjust=-0.5, vjust=-0.5, size=4, 
+            colour="black", fontface="italic",
+            angle=360)
+
+options(repr.plot.width= 15, repr.plot.height=6)
+grid.arrange(s1,s2, nrow=2)
+
+options(repr.plot.width= 10, repr.plot.height=6)
+df %>% filter(type == "conventional") %>% ggplot(aes(x= month, y = Average_TotalVolume, color = year, group = year)) + geom_line() +
+  labs(title = "Yearly Average Volumn for Conventional Avocado per Month") + theme(axis.text.x = element_text(angle = 45))
+
+options(repr.plot.width= 10, repr.plot.height=6)
+df %>% filter(type == "organic") %>% ggplot(aes(x= month, y = Average_TotalVolume, color = year, group = year)) + geom_line() +
+  labs(title = "Yearly Average Volumn for Organic Avocado per Month") + theme(axis.text.x = element_text(angle = 45))
+
+options(repr.plot.width= 10, repr.plot.height=6)
+df_season %>% filter(type == "conventional") %>% ggplot( aes(x = season, y = Average_TotalVolume, fill = season)) + geom_col() + facet_grid(~type)+ 
+  labs(title= "Average Volume for Conventional Avocado per Season")
+
+options(repr.plot.width= 10, repr.plot.height=6)
+df_season %>% filter(type == "organic") %>% ggplot( aes(x = season, y = Average_TotalVolume, fill = season)) + geom_col() + facet_grid(~type) +
+  labs(title= "Average Volume for Organic Avocado per Season")
+
+# select column region, total volume, type from the dataset avocado_df
+
+df_region <- avocado_df %>% select(region, Total_Volume, type)%>% group_by(region, type) %>% summarise(Average_TotalVolume= mean(Total_Volume)) 
+df_region$region <- as.factor(df_region$region) 
+
+# plot for region vs volume of conventional avocado
+
+plot1 <- df_region %>% filter(type == "conventional", region != "TotalUS",region != "West", region != "Southeast", region != "SouthCentral", region != "Northeast", 
+                              region != "California", region != "Midsouth", region != "Plains", region != "WestTexNewMexico", region != "GreatLakes" ) %>% 
+  ggplot( aes(x=Average_TotalVolume, y=fct_reorder(region, Average_TotalVolume), label = round(Average_TotalVolume, 1))) + geom_segment(aes(x = 0, 
+                                                                                                                                            y = fct_reorder(region, Average_TotalVolume), 
+                                                                                                                                            xend = Average_TotalVolume, 
+                                                                                                                                            yend = fct_reorder(region, Average_TotalVolume)), 
+                                                                                                                                        color = "black")+ 
+  geom_point() + labs(x = "Average_TotalVolume", y ="Region", title = "Region vs. Average Volume of Conventional Avocado") + 
+  geom_text( vjust = 0, hjust = 0, nudge_y = .1, nudge_x = .5)
+
+# plot for region vs volume of organic avocado
+
+plot2 <- df_region %>% filter(type == "organic", region != "TotalUS",region != "West", region != "Southeast", region != "SouthCentral", region != "Northeast", 
+                              region != "California", region != "Midsouth", region != "Plains", region != "WestTexNewMexico", region != "GreatLakes" ) %>% 
+  ggplot( aes(x=Average_TotalVolume, y=fct_reorder(region, Average_TotalVolume), label = round(Average_TotalVolume, 1))) + geom_segment(aes(x = 0, 
+                                                                                                                                            y = fct_reorder(region, Average_TotalVolume), 
+                                                                                                                                            xend = Average_TotalVolume, 
+                                                                                                                                            yend = fct_reorder(region, Average_TotalVolume)), 
+                                                                                                                                        color = "black")+ 
+  geom_point() + labs(x = "Average_TotalVolume", y ="Region", title = "Region vs. Average Volume of Organic Avocado") + 
+  geom_text( vjust = 0, hjust = 0, nudge_y = .1, nudge_x = .5)
+
+# put plot1 and plot2 together
+
+options(repr.plot.width= 15, repr.plot.height=15)
+grid.arrange(plot1,plot2, ncol=2)
+
+volume_conv <- avocado_df %>% select(year, month, Total_Volume, region, type) %>% 
+  filter(type == "conventional", year == c("2015", "2016", "2017"), 
+         region == c("Northeast", "SouthCentral", "MidSouth", "Southeast", "West")) %>% 
+  group_by(year, month, region) %>% summarize(avg_vol=mean(Total_Volume)) %>%
+  ggplot(aes(x=month, y=avg_vol)) + geom_point(color="#5D6D7E") + geom_line(group=1, color="#FE642E") +
+  facet_grid(region ~ year)+ 
+  theme_economist() + 
+  theme(plot.title=element_text(hjust=0.5), plot.background=element_rect(fill="#F2F5A9"), axis.text.x = element_text(angle = 90)) + 
+  labs(title="Market Volume \n Convenctional Avocados", x="Month", y="Average Volume")
+
+volume_org <- avocado_df %>% select(year, month, Total_Volume, region, type) %>% 
+  filter(type == "organic", year == c("2015", "2016", "2017"), 
+         region == c("Northeast", "SouthCentral", "MidSouth", "Southeast", "West")) %>% 
+  group_by(year, month, region) %>% summarize(avg_vol=mean(Total_Volume)) %>%
+  ggplot(aes(x=month, y=avg_vol)) + geom_point(color="#5D6D7E") + geom_line(group=1, color="#819FF7") +
+  facet_grid(region ~ year)+ 
+  theme_economist() + 
+  theme(plot.title=element_text(hjust=0.5), plot.background=element_rect(fill="#E6E6E6"), axis.text.x = element_text(angle = 90)) + 
+  labs(title="Market Volume \n Organic Avocados", x="Month", y="Average Volume")
+
+df2 <- avocado_df[ , c(3:8)]
+
+# Visualize the correlation matrix
+
+df2_cor <- round(cor(df2), 2)
+ggcorrplot(df2_cor, lab = TRUE) + labs(title = "Correlation graph")
+
+# since column names are given in number so chage it as a string.
+
+colnames(avocado_df)[5] <- "PLU4046"
+colnames(avocado_df)[6] <- "PLU4225"
+colnames(avocado_df)[7] <- "PLU4770"
+
+#avocado_df
+# change bags in percentage
+
+df_percentage <- avocado_df %>% select(Total_Volume, Small_Bags, Large_Bags, XLarge_Bags, PLU4046, PLU4225, PLU4770) %>% 
+  summarise(Total_Volume = sum(Total_Volume), Small_Bags = sum(Small_Bags),Large_Bags = sum(Large_Bags),XLarge_Bags = sum(XLarge_Bags),
+            PLU4046 = sum(PLU4046), PLU4225 = sum(PLU4225), PLU4770 = sum(PLU4770)) %>% 
+  mutate(smallbag_percentage = ((Small_Bags/Total_Volume)*100), Largebag_percentage = ((Large_Bags/Total_Volume)*100),
+         XLargebag_percentage = ((XLarge_Bags/Total_Volume)*100), PLU4046_percentage = ((PLU4046/Total_Volume)*100),
+         PLU4225_percentage = ((PLU4225/Total_Volume)*100),PLU4770_percentage = ((PLU4770/Total_Volume)*100))
+
+# change column in pivot table
+
+data_percentage <- df_percentage%>% select(smallbag_percentage, Largebag_percentage, XLargebag_percentage, PLU4046_percentage, PLU4225_percentage, PLU4770_percentage) %>%
+  pivot_longer(cols = names(.))  
+
+data_percentage
+
+options(repr.plot.width= 15, repr.plot.height=8)
+ggplot(data_percentage, aes(x = "", y = value, fill = name)) + 
+  geom_col(color = "black") +
+  coord_polar(theta = "y", start=0) +
+  geom_text(aes(label = paste0(round(value,1), "%")),
+            position = position_stack(vjust = 0.5)) +
+  coord_polar(theta = "y") +
+  theme_void() +
+  scale_fill_brewer(palette="Set1") + labs(title = "4046, 4225, 4770, Small, Large, XLarge Bags Avocado Percentage of Total Sales")
+
+# 1. for conventional:
+
+conventionalPrice_change <- avocado_df %>% filter(type == "conventional", year == c("2015", "2016", "2017"))%>% group_by(year, month)  %>%
+  summarise(AveragePrice = mean(AveragePrice) )%>% select(year,month, AveragePrice)
+
+conventionalPrice_change
+
+# change column values year into column names
+
+dd<- spread(conventionalPrice_change,key=year, value = AveragePrice)
+dd
+
+# change column name numeric to string
+
+colnames(dd)[2]<- "first_year"
+colnames(dd)[3]<- "second_year"
+colnames(dd)[4]<- "third_year"
+
+aa <- dd %>% 
+  mutate(percentage_change1 = (second_year - first_year)*100/(first_year), percentage_change2 = (third_year - second_year)*100/(second_year) ) 
+
+aa
+
+aa<- aa %>% 
+  mutate(first_cond=ifelse(percentage_change1 > 0, "Positive", "Negative"),
+         second_cond=ifelse(percentage_change2 > 0, "Positive", "Negative"))
+aa
+
+plot3<- ggplot(aa) + geom_segment(aes(x = month,   y = first_year, xend = month,  yend = second_year))+ 
+  geom_point( aes(x=month, y=first_year), color="Red", size=3 )+
+  geom_point( aes(x=month, y=second_year),color="Blue", size=3) + 
+  labs(x = "month", y ="Average Price", title = "Conventional Avocado Price Changes \n (2015-2016)", 
+       caption="Red: Average Price for 2015, Blue: Average Price for 2016") + coord_flip() +
+  theme(plot.title = element_text(hjust = 0.5)) 
+
+plot4 <- ggplot(aa) + geom_segment(aes(x = month,   y = second_year, xend = month,  yend = third_year))+ 
+  geom_point( aes(x=month, y=second_year), color="Red", size=3 )+
+  geom_point( aes(x=month, y=third_year),color="Blue", size=3) + 
+  labs(x = "month", y ="Average Price", title = "Conventional Avocado Price Changes \n (2016-2017)", 
+       caption="Red: Average Price for 2016, Blue: Average Price for 2017") + coord_flip()+
+  theme(plot.title = element_text(hjust = 0.5)) 
+
+plot5 <- ggplot(aa, aes(x = month, y = round(percentage_change1, 2), fill = first_cond)) + geom_bar(stat="identity")+
+  labs(x="Month", y="% Difference", title = "Conventional Avocado Price Changes Percentage \n (2015-2016)") + 
+  guides(fill=guide_legend(title="Diff Status")) + scale_fill_manual(values=c("#FB4D42", "#ADE175"))+
+  theme(plot.title = element_text(hjust = 0.5))+ theme(axis.text.x = element_text(angle = 45)) 
+
+plot6<-ggplot(aa, aes(x = month, y = round(percentage_change2, 2), fill = second_cond)) + geom_bar(stat="identity")+
+  labs(x="Month", y="% Difference", title = "Conventional Avocado Price Changes Percentage \n (2016-2017)") + 
+  guides(fill=guide_legend(title="Diff Status")) + scale_fill_manual(values=c("#FB4D42", "#ADE175"))+
+  theme(plot.title = element_text(hjust = 0.5))+ theme(axis.text.x = element_text(angle = 45)) 
+
+# put plot3, plot4, plot5 and plot6 together
+
+options(repr.plot.width= 15, repr.plot.height=15)
+grid.arrange(plot3,plot4,plot5, plot6, ncol=2, nrow=2)
+
+# 2. for organic:
+
+organicPrice_change <- avocado_df %>% filter(type == "organic", year == c("2015", "2016", "2017"))%>% group_by(year, month)  %>%
+  summarise(AveragePrice = mean(AveragePrice) )%>% select(year,month, AveragePrice)
+
+organicPrice_change
+
+# change column values year into column names
+
+ee<- spread(organicPrice_change,key=year, value = AveragePrice)
+ee
+
+# change column name numeric to string
+
+colnames(ee)[2]<- "first_year"
+colnames(ee)[3]<- "second_year"
+colnames(ee)[4]<- "third_year"
+
+ff <- ee %>% 
+  mutate(percentage_change1 = (second_year - first_year)*100/(first_year), percentage_change2 = (third_year - second_year)*100/(second_year) ) 
+
+ff
+
+ff<- ff %>% 
+  mutate(first_cond=ifelse(percentage_change1 > 0, "Positive", "Negative"),
+         second_cond=ifelse(percentage_change2 > 0, "Positive", "Negative"))
+ff
+
+plot7<- ggplot(ff) + geom_segment(aes(x = month,   y = first_year, xend = month,  yend = second_year))+ 
+  geom_point( aes(x=month, y=first_year), color="Red", size=3 )+
+  geom_point( aes(x=month, y=second_year),color="Blue", size=3) + 
+  labs(x = "month", y ="Average Price", title = "Organic Avocado Price Changes \n (2015-2016)", 
+       caption="Red: Average Price for 2015, Blue: Average Price for 2016") + coord_flip() +
+  theme(plot.title = element_text(hjust = 0.5)) 
+
+plot8 <- ggplot(ff) + geom_segment(aes(x = month,   y = second_year, xend = month,  yend = third_year))+ 
+  geom_point( aes(x=month, y=second_year), color="Red", size=3 )+
+  geom_point( aes(x=month, y=third_year),color="Blue", size=3) + 
+  labs(x = "month", y ="Average Price", title = "Organic Avocado Price Changes \n (2016-2017)", 
+       caption="Red: Average Price for 2016, Blue: Average Price for 2017") + coord_flip()+
+  theme(plot.title = element_text(hjust = 0.5)) 
+
+plot9 <- ggplot(ff, aes(x = month, y = round(percentage_change1, 2), fill = first_cond)) + geom_bar(stat="identity")+
+  labs(x="Month", y="% Difference", title = "Organic Avocado Price Changes Percentage \n (2015-2016)") + 
+  guides(fill=guide_legend(title="Diff Status")) + scale_fill_manual(values=c("#FB4D42", "#ADE175"))+
+  theme(plot.title = element_text(hjust = 0.5))+ theme(axis.text.x = element_text(angle = 45))
+
+plot10<-ggplot(ff, aes(x = month, y = round(percentage_change2, 2), fill = second_cond)) + geom_bar(stat="identity")+
+  labs(x="Month", y="% Difference", title = "Organic Avocado Price Changes Percentage \n (2016-2017)") + 
+  guides(fill=guide_legend(title="Diff Status")) + scale_fill_manual(values=c("#FB4D42", "#ADE175"))+
+  theme(plot.title = element_text(hjust = 0.5))+ theme(axis.text.x = element_text(angle = 45)) 
+
+# put plot3, plot4, plot5 and plot6 together
+
+options(repr.plot.width= 15, repr.plot.height=15)
+grid.arrange(plot7,plot8,plot9, plot10, ncol=2, nrow=2)
+
+# 2. for conventional:
+
+conventionalVolume_change <- avocado_df %>% filter(type == "conventional", year == c("2015", "2016", "2017"))%>% group_by(year, month)  %>%
+  summarise(AverageVolume = mean(Total_Volume) )%>% select(year,month, AverageVolume)
+
+conventionalVolume_change
+
+# change column values year into column names
+
+x1<- spread(conventionalVolume_change,key=year, value = AverageVolume)
+x1
+
+# change column name numeric to string
+
+colnames(x1)[2]<- "first_year"
+colnames(x1)[3]<- "second_year"
+colnames(x1)[4]<- "third_year"
+
+y1 <- x1 %>% 
+  mutate(percentage_change1 = (second_year - first_year)*100/(first_year), percentage_change2 = (third_year - second_year)*100/(second_year) ) 
+
+y1
+
+y1<- y1 %>% 
+  mutate(first_cond=ifelse(percentage_change1 > 0, "Positive", "Negative"),
+         second_cond=ifelse(percentage_change2 > 0, "Positive", "Negative"))
+y1
+
+p1<- ggplot(y1) + geom_segment(aes(x = month,   y = first_year, xend = month,  yend = second_year))+ 
+  geom_point( aes(x=month, y=first_year), color="Red", size=3 )+
+  geom_point( aes(x=month, y=second_year),color="Blue", size=3) + 
+  labs(x = "month", y ="Average Volume", title = "Conventional Avocado Volume Changes \n (2015-2016)", 
+       caption="Red: Average Volume for 2015, Blue: Average Volume for 2016") + coord_flip() +
+  theme(plot.title = element_text(hjust = 0.5)) 
+
+p2 <- ggplot(y1) + geom_segment(aes(x = month,   y = second_year, xend = month,  yend = third_year))+ 
+  geom_point( aes(x=month, y=second_year), color="Red", size=3 )+
+  geom_point( aes(x=month, y=third_year),color="Blue", size=3) + 
+  labs(x = "month", y ="Average Volume", title = "Conventional Avocado Volume Changes \n (2016-2017)", 
+       caption="Red: Average Volume for 2016, Blue: Average Volume for 2017") + coord_flip()+
+  theme(plot.title = element_text(hjust = 0.5))
+
+p3 <- ggplot(y1, aes(x = month, y = round(percentage_change1, 2), fill = first_cond)) + geom_bar(stat="identity")+
+  labs(x="Month", y="% Difference", title = "Conventional Avocado Volume Changes Percentage \n (2015-2016)") + 
+  guides(fill=guide_legend(title="Diff Status")) + scale_fill_manual(values=c("#FB4D42", "#ADE175"))+
+  theme(plot.title = element_text(hjust = 0.5))+ theme(axis.text.x = element_text(angle = 45))
+
+p4<-ggplot(y1, aes(x = month, y = round(percentage_change2, 2), fill = second_cond)) + geom_bar(stat="identity")+
+  labs(x="Month", y="% Difference", title = "Conventional Avocado Volume Changes Percentage \n (2016-2017)") + 
+  guides(fill=guide_legend(title="Diff Status")) + scale_fill_manual(values=c("#FB4D42", "#ADE175"))+
+  theme(plot.title = element_text(hjust = 0.5))+ theme(axis.text.x = element_text(angle = 45))
+
+# put plot3, plot4, plot5 and plot6 together
+
+options(repr.plot.width= 15, repr.plot.height=15)
+grid.arrange(p1,p2,p3, p4, ncol=2, nrow=2)
+
+# 2. for organic:
+
+organicVolume_change <- avocado_df %>% filter(type == "organic", year == c("2015", "2016", "2017"))%>% group_by(year, month)  %>%
+  summarise(AverageVolume = mean(Total_Volume) )%>% select(year,month, AverageVolume)
+
+organicVolume_change
+
+# change column values year into column names
+
+x2<- spread(organicVolume_change,key=year, value = AverageVolume)
+x2
+
+# change column name numeric to string
+
+colnames(x2)[2]<- "first_year"
+colnames(x2)[3]<- "second_year"
+colnames(x2)[4]<- "third_year"
+
+y2 <- x2 %>% 
+  mutate(percentage_change1 = (second_year - first_year)*100/(first_year), percentage_change2 = (third_year - second_year)*100/(second_year) ) 
+
+y2
+
+y2<- y2 %>% 
+  mutate(first_cond=ifelse(percentage_change1 > 0, "Positive", "Negative"),
+         second_cond=ifelse(percentage_change2 > 0, "Positive", "Negative"))
+y2
+
+p5<- ggplot(y2) + geom_segment(aes(x = month,   y = first_year, xend = month,  yend = second_year))+ 
+  geom_point( aes(x=month, y=first_year), color="Red", size=3 )+
+  geom_point( aes(x=month, y=second_year),color="Blue", size=3) + 
+  labs(x = "month", y ="Average Volume", title = "Organic Avocado Volume Changes \n (2015-2016)", 
+       caption="Red: Average Volume for 2015, Blue: Average Volume for 2016") + coord_flip() +
+  theme(plot.title = element_text(hjust = 0.5))
+
+p6 <- ggplot(y2) + geom_segment(aes(x = month,   y = second_year, xend = month,  yend = third_year))+ 
+  geom_point( aes(x=month, y=second_year), color="Red", size=3 )+
+  geom_point( aes(x=month, y=third_year),color="Blue", size=3) + 
+  labs(x = "month", y ="Average Volume", title = "Organic Avocado Volume Changes \n (2016-2017)", 
+       caption="Red: Average Volume for 2016, Blue: Average Volume for 2017") + coord_flip()+
+  theme(plot.title = element_text(hjust = 0.5))
+
+p7 <- ggplot(y2, aes(x = month, y = round(percentage_change1, 2), fill = first_cond)) + geom_bar(stat="identity")+
+  labs(x="Month", y="% Difference", title = "Organic Avocado Volume Changes Percentage \n (2015-2016)") + 
+  guides(fill=guide_legend(title="Diff Status")) + scale_fill_manual(values=c("#ADE175"))+
+  theme(plot.title = element_text(hjust = 0.5))+ theme(axis.text.x = element_text(angle = 45)) 
+
+p8<-ggplot(y2, aes(x = month, y = round(percentage_change2, 2), fill = second_cond)) + geom_bar(stat="identity")+
+  labs(x="Month", y="% Difference", title = "Organic Avocado Volume Changes Percentage \n (2016-2017)") + 
+  guides(fill=guide_legend(title="Diff Status")) + scale_fill_manual(values=c("#FB4D42", "#ADE175"))+
+  theme(plot.title = element_text(hjust = 0.5))+ theme(axis.text.x = element_text(angle = 45)) 
+
+# put plot3, plot4, plot5 and plot6 together
+
+options(repr.plot.width= 15, repr.plot.height=15)
+grid.arrange(p5,p6,p7, p8, ncol=2, nrow=2)
+
+options(repr.plot.width= 15, repr.plot.height=7)
+avocado_df %>% 
+  ggplot(aes(x= Total_Volume, fill=type))+
+  geom_density(alpha=0.7)+ 
+  scale_x_log10()+ 
+  scale_fill_manual(values=c("#2b501c", "#8cb575"))+
+  theme_classic()+
+  theme(legend.position="bottom")
+
+p9<- avocado_df %>% filter(type=="organic")%>%
+  ggplot(aes(Total_Volume, AveragePrice, color=type)) + 
+  geom_point() + 
+  geom_smooth(method="lm")+ 
+  scale_color_manual(values = c("#8cb575"))
+ theme_classic()+
+ theme(legend.position="bottom")
+ 
+ p10<- avocado_df %>% filter(type=="conventional")%>%
+   ggplot(aes(Total_Volume, AveragePrice, color=type)) + 
+   geom_point() + 
+   geom_smooth(method="lm")+ 
+   scale_color_manual(values = c("#2b501c"))
+  theme_classic()+
+  theme(legend.position="bottom")
+  
+  # put plot9 and plot10 together
+  
+  options(repr.plot.width= 15, repr.plot.height=6)
+  grid.arrange(p9, p10, ncol=2, nrow=1)
