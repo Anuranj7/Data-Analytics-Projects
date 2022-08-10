@@ -1,0 +1,114 @@
+# Using import wizard to import the table
+# Cleaning and exploring the data before visualisation in Tableau ;)
+SELECT 
+  * 
+FROM 
+  unicorn_companies;
+# Columns 'Valuation' and 'Funding', I would like to turn them into numbers in millions so I can compare and possible calculate ratios
+ALTER TABLE 
+  `Unicorn`.`unicorn_companies` CHANGE COLUMN `Valuation` `Valuation_M` TEXT NULL DEFAULT NULL, 
+  CHANGE COLUMN `Funding` `Funding_M` TEXT NULL DEFAULT NULL;
+UPDATE 
+  unicorn_companies 
+SET 
+  Valuation_M = REPLACE(Valuation_M, '$', '');
+UPDATE 
+  unicorn_companies 
+SET 
+  Funding_M = REPLACE(Funding_M, '$', '');
+UPDATE 
+  unicorn_companies 
+SET 
+  Valuation_M = REPLACE(Valuation_M, 'B', '000');
+UPDATE 
+  unicorn_companies 
+SET 
+  Funding_M = REPLACE(Funding_M, 'B', '000');
+UPDATE 
+  unicorn_companies 
+SET 
+  Funding_M = REPLACE(Funding_M, 'M', '');
+UPDATE 
+  unicorn_companies 
+SET 
+  Funding_M = REPLACE(Funding_M, 'Unknown', '');
+ALTER TABLE 
+  `Unicorn`.`unicorn_companies` CHANGE COLUMN `Valuation_M` `Valuation_M` INT NULL DEFAULT NULL;
+DELETE from 
+  unicorn_companies 
+WHERE 
+  Funding_M = '';
+-- deleting records where funding info is missing
+ALTER TABLE 
+  `Unicorn`.`unicorn_companies` CHANGE COLUMN `Funding_M` `Funding_M` INT NULL DEFAULT NULL;
+# Column 'Select investors', I would like to seperate the investers, in this case it is better to put it into a different table
+ALTER TABLE 
+  unicorn_companies 
+ADD 
+  id INT PRIMARY KEY AUTO_INCREMENT;
+ALTER TABLE 
+  `Unicorn`.`unicorn_companies` CHANGE COLUMN `id` `company_id` INT NOT NULL AUTO_INCREMENT;
+CREATE TABLE unicorn_investors (
+  company_id INT, 
+  Investor VARCHAR(50)
+);
+INSERT INTO unicorn_investors 
+SELECT 
+  unicorn_companies.company_id, 
+  SUBSTRING_INDEX(
+    SUBSTRING_INDEX(
+      unicorn_companies.Investors, ',', 
+      numbers.n
+    ), 
+    ',', 
+    -1
+  ) as Investor 
+FROM 
+  (
+    select 
+      1 n 
+    union all 
+    select 
+      2 
+    union all 
+    select 
+      3 
+    union all 
+    select 
+      4 
+    union all 
+    select 
+      5
+  ) as numbers 
+  INNER JOIN unicorn_companies on CHAR_LENGTH(unicorn_companies.Investors) - CHAR_LENGTH(
+    REPLACE(
+      unicorn_companies.Investors, ',', 
+      ''
+    )
+  )>= numbers.n - 1 
+ORDER BY 
+  company_id, 
+  n;
+# Upon visually inspecting the unicorn_investors table, two more things
+# I need to trim the investor names so there is no space at the beginning
+# I want to assign unique IDs to each investor
+UPDATE 
+  unicorn_investors 
+SET 
+  investor = TRIM(
+    LEADING ' ' 
+    FROM 
+      investor
+  );
+CREATE TABLE investors_list (
+  investor VARCHAR(50)
+);
+INSERT INTO investors_list(investor) 
+SELECT 
+  DISTINCT(investor) 
+from 
+  unicorn_investors;
+ALTER TABLE 
+  investors_list 
+ADD 
+  investor_id INT PRIMARY KEY AUTO_INCREMENT;
