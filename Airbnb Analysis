@@ -1,0 +1,353 @@
+# Airbnb Montreal Data Analysis
+
+# How/where are tourists/Airbnb guests spending their money in Montreal?
+# What makes a successful host in Montreal?
+# Strategy suggestions for Airbnb in Montreal?
+
+
+
+# First, some data exploration - look at variables and relationships
+
+# How many Aurbnb hosts are there in Montreal currently?
+select count(distinct host_id) from listings;
+# 7,813 unique hosts
+
+# How many listings are there in Montreal currently?
+select count(distinct id) from listings;
+#12,303 unique listings
+
+
+# Hosts with multiple listings?
+select 
+  no_listings_per_host, 
+  count(host_id) as host_count,
+  count(host_id)/sum(count(host_id)) over () percentage
+from
+  (select host_id, count(distinct id) as no_listings_per_host
+from listings
+group by host_id) as a
+group by 
+  no_listings_per_host
+order by
+  no_listings_per_host
+;
+# About 6,500 (84%) hosts only have one listing, other hosts could have multiple listings (up to as many as 155)
+
+# Number of listings and average price by neighbourhood
+select
+  neighbourhood,
+  count(id) as no_listings,
+  avg(price) as avg_price
+from
+  listings
+group by
+  neighbourhood
+order by
+  avg(price) desc
+;
+# Some of the more rural/remote neighbourhoods have higher average prices, my guess is that the properties tend to be larger for these areas (room type/beds)
+
+# Number of listings and average price by Room Type
+select
+  room_type,
+  count(id) as no_listings,
+  avg(price) as avg_price
+from
+  listings
+group by
+  room_type
+order by
+  avg(price) desc
+;
+# What about number of beds?
+
+# Average price per bed by neighbourhood
+select 
+  listings.neighbourhood,
+  sum(listings.price)/sum(listings_details.beds) as price_per_bed
+from
+  listings
+  inner join
+  listings_details
+  on 
+  listings.id = listings_details.id
+group by
+  neighbourhood
+order by
+  price_per_bed desc
+;
+# This looks more like it, guests pay more $ for places downtown (Ville-Marie/Westmount) on average
+# As a Montrealer...at this point I am wondering what the deal is with Hampstead, outliers? Hosts who are detached from reality?
+# I took at look at the previous query, there are only 6 listings in total in Hampstead, so it is possible that the sample size is just too small
+# Without furthur information, I am moving on for now
+
+# Neighbourhoods with the biggest revenue potential
+# Measure "potential" - with availability 30, I am making the assumption here that more than 30 days (before 2021-10-01) is too far away for people to book Airbnb for a trip
+# Limitaion - availability being 0 could also mean that the host simply blocked the calendar (I am seleting only the ones who has been reviewed in the past 6 months assuming the rest are inactive)
+select
+  listings.neighbourhood,
+  sum(listings.price * (30 - listings_details.availability_30)) as potential_30
+from 
+  listings
+  inner join
+  listings_details
+  on 
+  listings.id = listings_details.id
+where 
+  listings.last_review >= "2021-10-01"
+group by
+  listings.neighbourhood
+order by
+  potential_30 desc
+;
+  
+# I would like to take a closer look at this table here - what about potential by neighbourhood and room type?
+# AKA I would like to pivot the table, and turn the rows into room types, with the values being "potential"
+select distinct room_type from listings; -- looking at the different room types, there is apparently a flaw in the data, but it's too small to be relevant
+
+select
+  listings.neighbourhood,
+  sum(listings.price * (30 - listings_details.availability_30)) as potential_30,
+  listings.room_type
+from 
+  listings
+  inner join
+  listings_details
+  on 
+  listings.id = listings_details.id
+where 
+  listings.last_review >= "2021-10-01"
+group by
+  listings.neighbourhood,
+  listings.room_type
+order by
+  potential_30 desc
+;
+
+-- alternatively, pivot the table with CASE
+select
+  listings.neighbourhood,
+  sum(listings.price * (30 - listings_details.availability_30)) as potential_30,
+  sum(case when listings.room_type = "Entire home/apt" then listings.price * (30 - listings_details.availability_30) end) as potential_entire_home,
+  sum(case when listings.room_type = "Private room" then listings.price * (30 - listings_details.availability_30) end) as potential_private_room,
+  sum(case when listings.room_type = "Share room" then listings.price * (30 - listings_details.availability_30) end) as potential_shared_room,
+  sum(case when listings.room_type = "Hotel room" then listings.price * (30 - listings_details.availability_30) end) as potential_hotel_room
+from
+  listings
+  inner join
+  listings_details
+  on 
+  listings.id = listings_details.id
+where
+  listings.last_review >= "2021-10-01"
+group by
+  listings.neighbourhood
+order by
+  potential_30 desc
+;
+
+# Now it's much clearer which neighbourhood/room type combos have the most revenue potential
+# The top two are entire homes in Ville-Marie and the Plateau by far
+# Also, it looks like no one really wants shared room, regardless of location
+# Entire homes as a room type is the most in demand 
+
+# Next let's analyse the reviews and ratings
+# Use number_of_reviews as a metric for populatiry
+# From Airbnb - A Superhost is someone who goes above and beyond in their hosting duties and is a shining example of how a Host should be. You can easily identify one from the badge that appears on their listing and profile.
+# I'd like to explore the "superhost" status a bit and see if it is associated with earning potential
+# As well as the elements associated with being a superhost (ratings)?, do they earn more (price)? Where are they in the city?
+
+# Number of superhosts/non-superhosts in MTL
+select distinct(host_is_superhost) from listings_details; 
+select 
+  count(case when host_is_superhost = 't' then id end) as Superhost,
+  count(case when host_is_superhost = 'f' then id end) as Regular
+from
+  listings_details
+;
+# 2,676 superhosts and 9,628 regular hosts
+# By neighbourhood
+select 
+  listings.neighbourhood,
+  count(case when listings_details.host_is_superhost = 't' then listings_details.id end) as Superhost,
+  count(case when listings_details.host_is_superhost = 'f' then listings_details.id end) as Regular
+from
+  listings_details
+  inner join
+  listings
+  on listings_details.id = listings.id
+where
+  listings.last_review >= "2021-10-01"
+group by
+  listings.neighbourhood
+;
+# Ville-Marie and Plateau are top 2 by number of superhosts
+# Looking into correlation between superhost status and price
+select
+  avg(case when listings_details.host_is_superhost = 't' then listings.price end) as superhost_avg_price,
+  avg(case when listings_details.host_is_superhost = 'f' then listings.price end) as regular_avg_price
+from
+  listings
+  inner join
+  listings_details
+  on
+  listings.id = listings_details.id
+where
+  listings.last_review >= "2021-10-01"
+;
+# 141 vs 113, superhosts charge more
+# Zooming in - what about neighbourhoods?
+select
+  listings.neighbourhood,
+  avg(case when listings_details.host_is_superhost = 't' then listings.price end) as superhost_avg_price,
+  avg(case when listings_details.host_is_superhost = 'f' then listings.price end) as regular_avg_price
+from
+  listings
+  inner join
+  listings_details
+  on
+  listings.id = listings_details.id
+where
+  listings.last_review >= "2021-10-01"
+group by
+  listings.neighbourhood
+order by
+  superhost_avg_price desc
+;
+
+# In Kirkland and Dorval, regular hosts charge more than superhosts on average, something is not adding up
+# Again, superhosts charge more but I suspect that the rankings of neighbourhoods has been affected by room type
+# Pulling the same query, but price per bed this time
+select
+  listings.neighbourhood,
+  avg(case when listings_details.host_is_superhost = 't' then listings.price/listings_details.beds end) as superhost_avg_price_per_bed,
+  avg(case when listings_details.host_is_superhost = 'f' then listings.price/listings_details.beds end) as regular_avg_price_per_bed
+from
+  listings
+  inner join
+  listings_details
+  on
+  listings.id = listings_details.id
+where
+  listings.last_review >= "2021-10-01"
+group by
+  listings.neighbourhood
+order by
+  superhost_avg_price_per_bed desc
+;
+
+# From previous queries we learned that there were only 6 listings in Hampstead, it's probably an exception.
+# We can see that in some neighbourhoods superhosts aren't even charging as much as the regular ones (especially in the Plateau where properties are in demand and superhosts have high revenue potential
+# Maybe Airbnb should notify the hosts about it to help them price their properties right for more revenue
+# There's also the possibility that the regular hosts aren't attracting as many guests as they could because they are pricing their properties too expensive
+# Either way, it has something to do with Airbnb helping their hosts with pricing
+
+# Next, let's look at ratings for superhosts vs regular hosts - what are superhosts doing right?
+select 
+  host_is_superhost,
+  avg(review_scores_rating) as avg_rating,
+  avg(review_scores_accuracy) as avg_rating_accuracy,
+  avg(review_scores_cleanliness) as avg_rating_cleanliness,
+  avg(review_scores_checkin) as avg_rating_checkin,
+  avg(review_scores_communication) as avg_rating_comm,
+  avg(review_scores_location) as avg_rating_location
+from
+  listings_details
+  inner join
+  listings
+  on
+  listings_details.id = listings.id
+where
+  listings.last_review >= "2021-10-01"
+group by
+  host_is_superhost
+;
+
+select
+  *
+from 
+  listings_details
+where
+  host_is_superhost = ''
+;
+# two records with col host_is_superhost blank, does not affect our analysis
+# relationship between instant book and revenue potential
+
+select distinct(instant_bookable) from listings_details;
+
+select
+  avg(case when listings_details.instant_bookable = 't' then listings.price * (30 - listings_details.availability_30) end) as instantbook_potential,
+  avg(case when listings_details.instant_bookable = 'f' then listings.price * (30 - listings_details.availability_30) end) as regular_potential
+from
+  listings_details
+  inner join
+  listings
+  on
+  listings_details.id = listings.id
+where
+  listings.last_review >= "2021-10-01"
+;
+# this does not match Airbnb's claim that enabling instant book increases a host's earnings
+# let's look at price and availability_30 separately
+
+select
+  avg(case when listings_details.instant_bookable = 't' then listings.price end) as instantbook_avg_price,
+  avg(case when listings_details.instant_bookable = 'f' then listings.price end) as regular_avg_price
+from
+  listings_details
+  inner join
+  listings
+  on
+  listings_details.id = listings.id
+where
+  listings.last_review >= "2021-10-01"
+;
+# average price is even higher without instant book, according to Airbnb hosts get double the reservations because of the convenience factor
+# is it true that with instant book enabled, hosts get more reservations?
+# again we will use the availibility for the next 30 days to measure it
+select
+  avg(case when instant_bookable = 't' then availability_30 end) as instantbook_avail,
+  avg(case when instant_bookable = 'f' then availability_30 end) as regular_avail
+from
+  listings_details
+  inner join
+  listings
+  on
+  listings_details.id = listings.id
+where
+  listings.last_review >= "2021-10-01"
+;
+# hosts with instant book enabled seems to be more available, which means they get less reservations.
+# again, I see the missing opportunity - hosts are not charging premium for the convenience that comes with instant book
+# Airbnb should work on making their hosts better informed in terms of pricing, also incentivize hosts by optimizing search results etc
+
+
+
+# Preparing data for Tableau
+select
+ listings.id,
+ listings.host_id,
+ listings.neighbourhood,
+ listings.room_type,
+ listings.number_of_reviews,
+ listings.last_review,
+ listings_details.host_since,
+ listings_details.host_is_superhost,
+ listings_details.bedrooms,
+ listings_details.beds,
+ listings_details.price,
+ listings_details.availability_30,
+ listings_details.review_scores_rating,
+ listings_details.review_scores_accuracy,
+ listings_details.review_scores_cleanliness,
+ listings_details.review_scores_checkin,
+ listings_details.review_scores_communication,
+ listings_details.review_scores_location,
+ listings_details.instant_bookable
+from
+  listings
+  inner join
+  listings_details
+  on
+  listings.id = listings_details.id
+;
