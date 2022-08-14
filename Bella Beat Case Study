@@ -1,0 +1,168 @@
+--Checking for number of Rows on dailyActivities
+
+Select Count(*)
+From [dbo].[dailyActivity_merged$]
+--940
+
+Select Count(*)
+From dailySteps_merged$
+--940
+
+Select Count(*)
+From [dbo].[sleepDay_merged$]
+--413
+
+--Checking for Duplicates in dailactivity set
+
+Select Id, ActivityDate, TotalSteps, Count(*)
+From [dbo].[dailyActivity_merged$]
+group by id, ActivityDate, TotalSteps
+Having Count(*) > 1
+---None
+
+
+--Modify date format for better understanding
+
+Update [dbo].[dailyActivity_merged$]
+Set ActivityDate = Convert(date, ActivityDate, 101)
+
+
+--Add sleep data columns into DailyActivities table
+
+Alter Table [dbo].[dailyActivity_merged$]
+Add total_mins_sleep int, total_minutes_bed int
+
+
+--Add sleep records into dailyActivity table
+
+UPDATE [dbo].[dailyActivity_merged$]
+Set total_mins_sleep = t2.[TotalMinutesAsleep],
+total_minutes_bed = t2.[TotalTimeInBed]
+From [dbo].[dailyActivity_merged$] as t1
+Full Outer Join sleepDay_merged$ as t2
+on t1.id = t2.id and t1.ActivityDate = t2.SleepDay
+
+Select * 
+From [dbo].[dailyActivity_merged$]
+
+
+-----Exploring total number of distinct users
+
+Select COUNT(DISTINCT Id) as Distinct_Users 
+From [dbo].[heartrate_seconds_merged$]
+--7 distinct users
+
+Select COUNT(DISTINCT Id) as Distinct_Users 
+From [dbo].[hourlySteps_merged$]
+--33 distinct users
+
+Select COUNT(DISTINCT Id) as Distinct_Users 
+From [dbo].[sleepDay_merged$]
+--24 distinct users
+
+Select COUNT(DISTINCT Id) as Distinct_Users 
+From [dbo].[weightLogInfo_merged$]
+--8 distinct users
+
+
+------------------------------------------------------------
+--Analysis of Data
+
+
+--Sum of active minutes by day. Which day are people most active
+
+Select WeekDays, SUM([VeryActiveMinutes]) as VActive
+From [dbo].[dailyActivity_merged$]
+Group by WeekDays
+
+
+--Time Expenditure per day
+
+Select Distinct WeekDays, SUM([SedentaryMinutes]) as sedentary_active_mins,
+SUM([LightlyActiveMinutes]) as lightly_active_mins,
+SUM([FairlyActiveMinutes]) as fairly_active_mins,
+SUM([VeryActiveMinutes]) as very_active_mins
+From [dbo].[dailyActivity_merged$]
+where [total_minutes_bed] is not null
+Group by WeekDays
+
+
+----Sed minute Average per user
+
+Select Id, AVG([SedentaryMinutes]) as Sedentary_min
+From [dbo].[dailyActivity_merged$]
+Group by Id
+
+--Sum of total total minutes in bed compraed to total minutes asleep
+
+Select Distinct Id, [WeekDays], SUM([total_mins_sleep]) as Minutes_Asleep, SUM([total_minutes_bed]) as Minutes_In_Bed
+From [dbo].[dailyActivity_merged$]
+Where [total_minutes_bed] is not null
+Group by Id, WeekDays
+
+-- Average calories burned by day of the week
+
+Select WeekDays, AVG([Calories]) as Avg_Cal
+From [dbo].[dailyActivity_merged$]
+Group by WeekDays
+Order by WeekDays ASC;
+
+--Average total steps by day of the week
+
+Select WeekDays, AVG([TotalSteps]) as Avg_Steps
+From [dbo].[dailyActivity_merged$]
+Group by WeekDays
+Order by WeekDays ASC;
+
+-- Average calories per user
+
+Select Id, AVG([Calories]) as User_Cal
+From [dbo].[dailyActivity_merged$]
+Group by Id
+
+--Activities and calories comparison
+
+Select Id,
+Sum([VeryActiveMinutes]) as total_very_active,
+Sum([FairlyActiveMinutes]) as total_fairly_active,
+SUM([LightlyActiveMinutes]) as lightly_active,
+Sum([Calories]) as total_calories
+From [dbo].[dailyActivity_merged$]
+Group by Id
+
+--Average sleep time per user
+
+Select Id, Avg([total_mins_sleep])/60 as avg_sleep_hours,
+AVG([total_minutes_bed])/60 as avg_bed_hours,
+AVG([total_minutes_bed] - [total_mins_sleep]) as wasted_time
+From [dbo].[dailyActivity_merged$]
+Where [total_minutes_bed] is not null
+Group by Id
+
+--Usage rate = Active users/total days
+
+Select [ActivityDate],
+SUM(CASE When TotalSteps > 0 THEN 1 END) as Active_User,
+SUM(CASE When TotalSteps >= 0 THEN 1 END) as Total
+From [dbo].[dailyActivity_merged$]
+Group by [ActivityDate]
+
+Select Id,
+SUM(CASE When TotalSteps > 0 THEN 1 END) as Active_User,
+SUM(CASE When TotalSteps >= 0 THEN 1 END) as Total
+From [dbo].[dailyActivity_merged$]
+Group by Id
+
+
+--Calculating Average of Daily Activity Minutes Per User
+
+Select [Id],
+AVG([VeryActiveMinutes]) as VActive_Minutes,
+AVG([FairlyActiveMinutes]) as FActive_Minutes,
+AVG(LightlyActiveMinutes) as LActive_Minutes,
+AVG([SedentaryMinutes]) as Sed_Minutes
+From [dbo].[dailyActivity_merged$]
+Group by [Id]
+
+
+
