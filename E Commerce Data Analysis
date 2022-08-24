@@ -1,0 +1,115 @@
+Diveded the total data into two tables to practise joins.
+
+Data is generated randomly using mockaroo.com
+-- Get a glimpse of the data
+SELECT *
+FROM transactions;
+
+SELECT *
+FROM customers;
+
+-- Do data cleaning
+-- Find how many transactions that has less than or equal to zero quantity
+SELECT COUNT(*) AS "quantity data less than or equal to zero"
+FROM transactions
+WHERE qty <= 0;
+
+-- Delete transactions with preceeding conditions
+DELETE FROM transactions
+WHERE qty <= 0;
+
+-- Check the data
+SELECT COUNT (*) AS "quantity data less than or equal to zero"
+FROM transactions
+WHERE qty <= 0;
+
+-- Check null values in quantity
+SELECT COUNT(*) AS "null quantity data"
+FROM transactions
+WHERE qty IS NULL;
+
+-- Delete transaction with null quantity
+DELETE FROM transactions
+WHERE qty IS NULL;
+
+-- Check the data
+SELECT COUNT(*) AS "null quantity data"
+FROM transactions
+WHERE qty IS NULL;
+
+-- Delete customers age with age less than or equal to 17
+DELETE FROM customers
+WHERE age <= 17;
+
+
+
+-- Simple data analysis
+-- Find the most popular products
+SELECT product_name, COUNT(*)
+FROM transactions
+GROUP BY product_name
+ORDER BY 2 DESC;
+
+-- Find most profitable products
+SELECT product_name, SUM(net_price) AS "total revenues"
+FROM transactions
+GROUP BY 1
+ORDER BY 2 DESC;
+
+-- Analyze age group
+SELECT age, COUNT(*)
+FROM transactions AS t
+INNER JOIN customers AS c
+USING(email)
+GROUP BY age
+ORDER BY age;
+
+-- Analyze average basket size per transaction
+SELECT AVG(qty) AS average_basket_size
+FROM transactions;
+
+-- Show different in basket size between discounted transaction and not
+SELECT (CASE WHEN discount_perc IS NOT NULL THEN 'Use Discount'
+        ELSE 'No Discount' END) AS discount_bool, AVG(qty) AS average_basket_size
+FROM transactions
+GROUP BY 1;
+
+
+
+-- Analyze by country
+-- Find which country has the most orders and revenues
+SELECT country, month, COUNT(*) AS "number of orders", SUM(total_revenues
+) AS "total revenues"
+FROM (SELECT email, TO_CHAR(date, 'Month') AS month, count(*) AS total_orders, SUM(net_price) AS total_revenues
+ FROM transactions
+ GROUP BY 1, 2) AS t
+INNER JOIN customers AS c
+USING(email)
+GROUP BY country, month
+ORDER BY 3 DESC, EXTRACT(MONTH FROM TO_DATE(month, 'Month'));
+
+
+
+-- Using CTE to analyze each product sales monthly
+-- Create CTE
+WITH productmonthly (product_name, month, total_orders, total_revenues) AS
+(SELECT product_name, TO_CHAR(date, 'Month') AS month, count(*) AS total_orders, SUM(net_price) AS total_revenues
+ FROM transactions
+ GROUP BY 1, 2
+)
+
+-- Find monthly revenues change
+SELECT *, COALESCE(total_revenues - previous_revenues, total_revenues) AS revenues_change
+FROM (SELECT product_name, month, total_revenues, LAG(total_revenues, 1) OVER(PARTITION BY product_name ORDER BY EXTRACT(MONTH FROM TO_DATE(month, 'Month'))) AS previous_revenues
+FROM productmonthly) AS pr;
+
+
+WITH productmonthly (product_name, month, total_orders, total_revenues) AS
+(SELECT product_name, TO_CHAR(date, 'Month') AS month, count(*) AS total_orders, SUM(net_price) AS total_revenues
+ FROM transactions
+ GROUP BY 1, 2
+)
+-- Find monthly orders change
+SELECT *, COALESCE(total_orders - previous_orders, total_orders) AS orders_change
+FROM(SELECT product_name, month, total_orders, LAG(total_orders, 1) OVER(PARTITION BY product_name ORDER BY EXTRACT(MONTH FROM TO_DATE(month, 'Month'))) AS previous_orders
+FROM productmonthly) AS po;
