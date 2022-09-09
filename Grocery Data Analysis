@@ -1,0 +1,197 @@
+--Preview the table
+SELECT * FROM dbo.Groceries_dataset;
+
+--Check for Null values in Column 1
+SELECT member_number FROM dbo.Groceries_dataset WHERE member_number IS NULL;
+
+--Check for Null values in Column 2
+SELECT purchase_date FROM dbo.Groceries_dataset WHERE purchase_date IS NULL;
+
+--Check for Null values in Column 3
+SELECT item_description FROM dbo.Groceries_dataset WHERE item_description IS NULL;
+
+--Create a new column in the table new_purchase_date
+ALTER TABLE dbo.Groceries_dataset ADD new_purchase_date DATE;
+
+--Create a new column for the purchase date cast as a DATE data type
+--103 specifies YYYY-MM-DD
+UPDATE dbo.Groceries_dataset SET new_purchase_date = CONVERT(DATE, purchase_date, 103);
+
+--Count distinct member numbers.
+SELECT COUNT( DISTINCT member_number) FROM dbo.Groceries_dataset;
+
+--Count distinct items
+SELECT COUNT( DISTINCT item_description) FROM dbo.Groceries_dataset;
+
+--Find earliest and latest dates in dataset
+SELECT MAX (new_purchase_date) FROM dbo.Groceries_dataset;
+SELECT MIN (new_purchase_date) FROM dbo.Groceries_dataset;
+
+--Find the most popular items sold
+SELECT item_description, COUNT(item_description) FROM dbo.Groceries_dataset 
+GROUP BY item_description ORDER BY COUNT(item_description) DESC;
+
+--Create a new column in the table for YEAR, MONTH, DAY, and DAY OF THE WEEK
+ALTER TABLE dbo.Groceries_dataset ADD purchase_year INT;
+ALTER TABLE dbo.Groceries_dataset ADD purchase_month INT;
+ALTER TABLE dbo.Groceries_dataset ADD purchase_day INT;
+ALTER TABLE dbo.Groceries_dataset ADD purchase_dow nvarchar(255);
+
+--Update new columns with date related data
+UPDATE dbo.Groceries_dataset SET purchase_year = YEAR(new_purchase_date);
+UPDATE dbo.Groceries_dataset SET purchase_month = MONTH(new_purchase_date);
+UPDATE dbo.Groceries_dataset SET purchase_day = DAY(new_purchase_date);
+UPDATE dbo.Groceries_dataset SET purchase_dow = DATENAME(weekday, new_purchase_date);
+
+--Most popular products for 2014
+SELECT item_description, count(item_description) FROM dbo.Groceries_dataset 
+WHERE purchase_year=2014 GROUP BY item_description ORDER BY count(item_description) DESC;
+
+--Most popular products for 2015
+SELECT item_description, count(item_description) FROM dbo.Groceries_dataset 
+WHERE purchase_year=2015 GROUP BY item_description ORDER BY count(item_description) DESC;
+
+--Sales by Year
+SELECT purchase_year, count(item_description)FROM dbo.Groceries_dataset 
+ GROUP BY purchase_year ORDER BY count(item_description) DESC;
+
+ --Practice writing GROUP BY and ORDER BY statements in different ways to compare outputs
+SELECT item_description, count(item_description), purchase_month FROM dbo.Groceries_dataset 
+ GROUP BY item_description, purchase_month ORDER BY count(item_description) DESC;
+
+ --Sales By Month
+ SELECT count(item_description), purchase_month FROM dbo.Groceries_dataset 
+ GROUP BY purchase_month ORDER BY count(item_description) DESC;
+
+   --Sales By Month for all years
+ SELECT purchase_month, count(item_description) FROM dbo.Groceries_dataset 
+ GROUP BY purchase_month ORDER BY count(item_description) DESC;
+
+   --Sales By Month for 2014
+ SELECT purchase_month, count(item_description) FROM dbo.Groceries_dataset WHERE purchase_year=2014
+ GROUP BY purchase_month ORDER BY count(item_description) DESC;
+
+   --Sales By Month for 2015
+ SELECT purchase_month, count(item_description) FROM dbo.Groceries_dataset WHERE purchase_year=2015
+ GROUP BY purchase_month ORDER BY count(item_description) DESC;
+
+ --Sales By purchase day for 2014
+      SELECT purchase_day, count(item_description) FROM dbo.Groceries_dataset WHERE purchase_year=2014
+ GROUP BY purchase_day ORDER BY count(item_description) DESC;
+
+  --Sales By purchase day for 2015
+   SELECT purchase_day, count(item_description) FROM dbo.Groceries_dataset WHERE purchase_year=2015
+ GROUP BY purchase_day ORDER BY count(item_description) DESC;
+
+ --Sales By purchase day of the week for 2014
+    SELECT purchase_dow, count(item_description) FROM dbo.Groceries_dataset WHERE purchase_year=2014
+ GROUP BY purchase_dow ORDER BY count(item_description) DESC;
+
+--Sales By purchase day of the week for 2015
+   SELECT purchase_dow, count(item_description) FROM dbo.Groceries_dataset WHERE purchase_year=2015
+ GROUP BY purchase_dow ORDER BY count(item_description) DESC;
+
+ --Preview the second item price table
+ SELECT item_number, item_description, cast(item_price as decimal(10,2)) FROM dbo.ItemPrices;
+
+ --JOIN groceries dataset table with item price table on item description
+  SELECT member_number, new_purchase_date,priceitem.item_description, item_number, 
+  cast(item_price as decimal(10,2)) AS purchase_price,
+  purchase_year, purchase_month, purchase_day, purchase_dow
+  FROM dbo.ItemPrices priceitem
+	LEFT JOIN dbo.Groceries_dataset groceryitem
+	ON priceitem.item_description = groceryitem.item_description
+	ORDER BY 1,2;
+
+--Create CTE for joined grocery and item price data
+With GrocerySales (member_number, purchase_date, item_description, item_number, purchase_price, 
+purchase_year, purchase_month, purchase_day, purchase_dow)
+	AS
+	  (SELECT member_number, new_purchase_date,priceitem.item_description, item_number, 
+  cast(item_price as decimal(10,2)) AS purchase_price,
+  purchase_year, purchase_month, purchase_day, purchase_dow
+  FROM dbo.ItemPrices priceitem
+	LEFT JOIN dbo.Groceries_dataset groceryitem
+	ON priceitem.item_description = groceryitem.item_description)
+
+	--Sales by Year from CTE
+SELECT purchase_year, SUM(purchase_price) FROM GrocerySales
+ GROUP BY purchase_year;
+
+ --Sales by Day of the Week from CTE
+SELECT purchase_dow, SUM(purchase_price) AS total_sales FROM GrocerySales
+WHERE purchase_year = 2015
+ GROUP BY purchase_dow
+ ORDER BY 2 DESC;
+
+ --Create View for all Grocery Sales formuse in Tableau visualization
+ CREATE VIEW GrocerySalesView As
+   SELECT member_number, new_purchase_date,priceitem.item_description, item_number, 
+  cast(item_price as decimal(10,2)) AS purchase_price,
+  purchase_year, purchase_month, purchase_day, purchase_dow
+  FROM dbo.ItemPrices priceitem
+	LEFT JOIN dbo.Groceries_dataset groceryitem
+	ON priceitem.item_description = groceryitem.item_description;
+
+
+--Create View for Most popular products for 2014
+ CREATE VIEW PopProducts2014View As
+	SELECT item_description, count(item_description) AS volume FROM dbo.Groceries_dataset 
+	WHERE purchase_year=2014 GROUP BY item_description;
+
+--Create View for Most popular products for 2015 
+CREATE VIEW PopProducts2015View As
+	SELECT item_description, count(item_description) AS volume FROM dbo.Groceries_dataset 
+	WHERE purchase_year=2015 GROUP BY item_description;
+
+----Create View for Sales by Year
+CREATE VIEW SalesVolumeByYearView As
+	SELECT purchase_year, count(item_description) AS volume FROM dbo.Groceries_dataset 
+	GROUP BY purchase_year;
+
+ --Create View for Sales Volume By Month for all years 
+CREATE VIEW SalesVolumeByMonthView As  
+	SELECT purchase_month, count(item_description)AS volume FROM dbo.Groceries_dataset 
+	GROUP BY purchase_month;
+
+CREATE VIEW SalesVolumeByMonthViewALLYEARS As  
+	SELECT purchase_month, purchase_year, count(item_description)AS volume FROM dbo.Groceries_dataset GROUP BY
+	purchase_month, purchase_year;
+
+--Create View for Sales Volume By Month for 2014  
+ CREATE VIEW SalesVolumeByMonth2014 As   
+	SELECT purchase_month, count(item_description) AS volume FROM dbo.Groceries_dataset WHERE purchase_year=2014
+	GROUP BY purchase_month;
+
+--Create View for Sales Volume By Month for 2015 
+ CREATE VIEW SalesVolumeByMonth2015 As   
+	SELECT purchase_month, count(item_description) AS volume FROM dbo.Groceries_dataset WHERE purchase_year=2015
+	GROUP BY purchase_month;
+
+CREATE VIEW SalesVolumeByDayViewALLYEARS As  
+	SELECT purchase_day, purchase_year, count(item_description)AS volume FROM dbo.Groceries_dataset GROUP BY
+	purchase_day, purchase_year;
+
+--Create View for Sales Volume By purchase day for 2014 
+ CREATE VIEW SalesVolumeByDay2014 As  
+      SELECT purchase_day, count(item_description) AS volume FROM dbo.Groceries_dataset WHERE purchase_year=2014
+	GROUP BY purchase_day;
+
+--Create View for Sales Volume By purchase day for 2015 
+ CREATE VIEW SalesVolumeByDay2015 As  
+	SELECT purchase_day, count(item_description) AS volume FROM dbo.Groceries_dataset WHERE purchase_year=2015
+	GROUP BY purchase_day;
+
+CREATE VIEW SalesVolumeByDOWViewALLYEARS As  
+	SELECT purchase_dow, purchase_year, count(item_description)AS volume FROM dbo.Groceries_dataset GROUP BY
+	purchase_dow, purchase_year;
+
+--Create View for Sales Volume By purchase day of week for 2014 
+ CREATE VIEW SalesVolumeByDOW2014 As   
+    SELECT purchase_dow, count(item_description) AS volume FROM dbo.Groceries_dataset WHERE purchase_year=2014
+	GROUP BY purchase_dow;
+
+--Create View for Sales By purchase day of week for 2015
+ CREATE VIEW SalesVolumeByDOW2015 As   
+	SELECT purchase_dow, count(item_description) AS volume FROM dbo.Groceries_dataset WHERE purchase_year=2015
+	GROUP BY purchase_dow;
